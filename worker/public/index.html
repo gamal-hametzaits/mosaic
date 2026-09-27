@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>מוזאיקה - פסיפס העולם</title>
+<meta name="description" content="קנבס ענק משותף לכל העולם. פיקסל אחד ביום, לתמיד.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='50' height='50' fill='%23ed1c24'/><rect x='50' width='50' height='50' fill='%2300a2e8'/><rect y='50' width='50' height='50' fill='%23fff200'/><rect x='50' y='50' width='50' height='50' fill='%2322b14c'/></svg>">
+<link rel="stylesheet" href="styles.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<header id="topbar">
+  <div id="brand">
+    <span id="brand-mark">🧩</span>
+    <div>
+      <h1>מוזאיקה</h1>
+      <span id="brand-sub">פסיפס אחד. כל העולם. פיקסל אחד ביום - לתמיד.</span>
+    </div>
+  </div>
+  <div id="auth-area">
+    <div id="g_id_onload-wrap"></div>
+    <div id="google-btn"></div>
+    <div id="me-chip" class="hidden">
+      <img id="me-pic" alt="">
+      <span id="me-name"></span>
+      <button id="logout-btn" title="התנתקות">✕</button>
+    </div>
+  </div>
+</header>
+
+<main id="layout">
+  <section id="canvas-wrap">
+    <canvas id="board"></canvas>
+    <div id="zoom-controls">
+      <button id="zoom-in" title="התקרבות">+</button>
+      <button id="zoom-out" title="התרחקות">−</button>
+      <button id="zoom-world" title="כל העולם">🌍</button>
+    </div>
+    <div id="coords-chip" class="hidden"></div>
+    <div id="hint-bar">גרור כדי לנוע, גלגלת/צביטה כדי לזום. התקרב עד שרואים רשת - ואז בחר משבצת.</div>
+  </section>
+
+  <aside id="sidebar">
+    <div id="daily-box" class="card">
+      <div id="daily-status">נכנסים עם גוגל כדי להניח פיקסל</div>
+      <div id="daily-countdown" class="muted"></div>
+    </div>
+
+    <div id="palette-box" class="card hidden">
+      <div class="card-title">בחר צבע</div>
+      <div id="palette"></div>
+      <div id="premium-note" class="muted">✦ צבעי פרימיום - בקרוב</div>
+      <button id="place-btn" disabled>הנח את הפיקסל שלי</button>
+      <div id="place-error" class="error"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">חיפוש</div>
+      <input id="search-input" type="text" placeholder="שם משתמש, מספר פיקסל (#12), או אזור 250,800">
+      <div id="search-results"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">סטטיסטיקה חיה</div>
+      <div id="stats-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">מכונת זמן</div>
+      <input id="timeline" type="range" min="0" max="100" value="100">
+      <div id="timeline-label" class="muted">הווה</div>
+    </div>
+
+    <div class="card" id="feed-card">
+      <div class="card-title">פיקסלים אחרונים</div>
+      <div id="feed"></div>
+    </div>
+  </aside>
+</main>
+
+<div id="modal-backdrop" class="hidden">
+  <div id="modal">
+    <button id="modal-close">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
