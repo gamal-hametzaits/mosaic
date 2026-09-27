@@ -447,7 +447,15 @@ async function refreshFeed() {
     r.onclick = () => flyTo(+r.dataset.x, +r.dataset.y);
   });
 }
-setInterval(() => { refreshFeed(); refreshStats(); }, 20000);
+// Free-tier friendly: idle background tabs need no live feed/stats polling.
+// Refresh on return so the canvas catches up without a constant request stream.
+const REFRESH_MS = 60000;
+setInterval(() => {
+  if (document.visibilityState === "visible") { refreshFeed(); refreshStats(); }
+}, REFRESH_MS);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") { refreshFeed(); refreshStats(); }
+});
 
 // ---------- search ----------
 let searchTimer = null;
