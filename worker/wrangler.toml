@@ -12,5 +12,5 @@ database_name = "mosaic-db"
 database_id = "72e82aa8-e85d-4adf-82b3-dc84faa275b4"
 
 [vars]
-GOOGLE_CLIENT_ID = ""
+GOOGLE_CLIENT_ID = "1006095598582-7f0h209auujs87k4b5fuhoqa0c9qh5b2.apps.googleusercontent.com"
 ADMIN_EMAILS = "ozoz76747@gmail.com"
