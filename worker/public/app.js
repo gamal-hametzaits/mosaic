@@ -20,6 +20,8 @@ const S = {
   overview: null,        // ImageBitmap 1000x1000
   tiles: new Map(),      // "tx,ty" -> ImageBitmap
   tilePending: new Set(),
+  tileEpoch: 0,          // reject tile responses from before a remote canvas update
+  overviewEpoch: 0,
   selected: null,        // {x,y}
   selectedColor: null,
   historyPixels: null,   // timeline overlay
@@ -90,7 +92,8 @@ function clampView() {
 }
 
 async function loadOverview() {
-  const { data } = await api("/api/overview");
+  const epoch = ++S.overviewEpoch;
+  const { data } = await api("/api/overview", { cache: "no-store" });
   const bytes = new Uint8Array(data);
   const img = new ImageData(1000, 1000);
   for (let i = 0; i < bytes.length; i++) {
@@ -103,15 +106,19 @@ async function loadOverview() {
     img.data[o + 2] = parseInt(hex.slice(5, 7), 16);
     img.data[o + 3] = 255;
   }
-  S.overview = await createImageBitmap(img);
+  const bitmap = await createImageBitmap(img);
+  if (epoch !== S.overviewEpoch) { bitmap.close(); return; }
+  if (S.overview) S.overview.close();
+  S.overview = bitmap;
   draw();
 }
 async function loadTile(tx, ty) {
   const key = tx + "," + ty;
   if (S.tiles.has(key) || S.tilePending.has(key)) return;
   S.tilePending.add(key);
+  const epoch = S.tileEpoch;
   try {
-    const { data } = await api("/api/tile/" + tx + "/" + ty);
+    const { data } = await api("/api/tile/" + tx + "/" + ty, { cache: "no-store" });
     const bytes = new Uint8Array(data);
     const img = new ImageData(TILE, TILE);
     for (let i = 0; i < bytes.length; i++) {
@@ -124,10 +131,11 @@ async function loadTile(tx, ty) {
       img.data[o + 2] = parseInt(hex.slice(5, 7), 16);
       img.data[o + 3] = 255;
     }
-    S.tiles.set(key, await createImageBitmap(img));
-    draw();
+    const bitmap = await createImageBitmap(img);
+    if (epoch === S.tileEpoch) { S.tiles.set(key, bitmap); draw(); }
+    else bitmap.close();
   } catch (e) { /* retry next frame */ }
-  S.tilePending.delete(key);
+  if (epoch === S.tileEpoch) S.tilePending.delete(key);
 }
 
 function draw() {
@@ -403,7 +411,8 @@ $("place-btn").onclick = async () => {
     S.me.placed_today = true;
     S.me.total_pixels = (S.me.total_pixels || 0) + 1;
     const { x, y } = S.selected;
-    S.tiles.delete(Math.floor(x / TILE) + "," + Math.floor(y / TILE));
+    const tileKey = Math.floor(x / TILE) + "," + Math.floor(y / TILE);
+    if (S.tiles.has(tileKey)) { S.tiles.get(tileKey).close(); S.tiles.delete(tileKey); }
     loadOverview();
     refreshFeed(); refreshStats();
     S.selected = null; S.selectedColor = null;
@@ -434,9 +443,22 @@ async function refreshStats() {
 }
 const stat = (v, l) => '<div class="stat-box"><b>' + v + '</b><span>' + l + "</span></div>";
 
+let latestFeedId = null;
 async function refreshFeed() {
   const { data } = await api("/api/feed");
   if (!data.feed) return;
+  // The server's tile/overview cache is brief, but our in-page bitmap cache was
+  // permanent. When another player places a pixel, drop it so their art appears.
+  const newestId = data.feed.length ? data.feed[0].id : 0;
+  if (latestFeedId !== null && newestId !== latestFeedId) {
+    S.tileEpoch++;
+    for (const bitmap of S.tiles.values()) bitmap.close();
+    S.tiles.clear();
+    S.tilePending.clear();
+    loadOverview();
+    draw();
+  }
+  latestFeedId = newestId;
   $("feed").innerHTML = data.feed.map((p) =>
     '<div class="feed-row" data-x="' + p.x + '" data-y="' + p.y + '">' +
     '<span class="feed-swatch" style="background:' + (PALETTE[p.color] || "#000") + '"></span>' +
