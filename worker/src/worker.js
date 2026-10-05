@@ -78,7 +78,8 @@ async function verifyGoogleCredential(credential, clientId) {
   const header = JSON.parse(new TextDecoder().decode(bytesFromB64u(parts[0])));
   const payload = JSON.parse(new TextDecoder().decode(bytesFromB64u(parts[1])));
   if (header.alg !== 'RS256') return null;
-  const keys = await googleKeys();
+  let keys;
+  try { keys = await googleKeys(); } catch (e) { const u = new Error('upstream'); u.upstream = true; throw u; }
   const jwk = keys.find((k) => k.kid === header.kid);
   if (!jwk) return null;
   const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
@@ -145,7 +146,8 @@ export default {
         if (typeof body.credential !== 'string' || body.credential.length > 4096) return json({ error: 'invalid google token' }, 401);
         if (!env.GOOGLE_CLIENT_ID) return json({ error: 'login not configured' }, 503);
         let g = null;
-        try { g = await verifyGoogleCredential(body.credential, env.GOOGLE_CLIENT_ID); } catch (e) { g = null; }
+        try { g = await verifyGoogleCredential(body.credential, env.GOOGLE_CLIENT_ID); }
+        catch (e) { if (e && e.upstream) return json({ error: 'login temporarily unavailable', retry: true }, 503); g = null; }
         if (!g) return json({ error: 'invalid google token' }, 401);
         const email = (g.email || '').toLowerCase();
         await env.DB.prepare(
