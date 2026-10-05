@@ -142,8 +142,10 @@ export default {
       if (path === '/api/auth/verify' && request.method === 'POST') {
         const body = await request.json().catch(() => null);
         if (!body || !body.credential) return json({ error: 'missing credential' }, 400);
+        if (typeof body.credential !== 'string' || body.credential.length > 4096) return json({ error: 'invalid google token' }, 401);
         if (!env.GOOGLE_CLIENT_ID) return json({ error: 'login not configured' }, 503);
-        const g = await verifyGoogleCredential(body.credential, env.GOOGLE_CLIENT_ID);
+        let g = null;
+        try { g = await verifyGoogleCredential(body.credential, env.GOOGLE_CLIENT_ID); } catch (e) { g = null; }
         if (!g) return json({ error: 'invalid google token' }, 401);
         const email = (g.email || '').toLowerCase();
         await env.DB.prepare(
