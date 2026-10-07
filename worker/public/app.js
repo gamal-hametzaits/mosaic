@@ -481,32 +481,43 @@ document.addEventListener("visibilitychange", () => {
 
 // ---------- search ----------
 let searchTimer = null;
+let searchEpoch = 0;
+$("search-results").setAttribute("aria-live", "polite");
 $("search-input").addEventListener("input", (e) => {
   clearTimeout(searchTimer);
+  const epoch = ++searchEpoch;
   const q = e.target.value.trim();
-  if (!q) { $("search-results").innerHTML = ""; return; }
+  const out = $("search-results");
+  out.innerHTML = "";
+  if (!q) return;
+  out.innerHTML = '<span class="muted">מחפש…</span>';
   searchTimer = setTimeout(async () => {
-    const { data } = await api("/api/search?q=" + encodeURIComponent(q));
-    const out = $("search-results");
-    if (data.type === "pixel") {
-      out.innerHTML = data.pixel
-        ? '<div class="search-row" data-x="' + data.pixel.x + '" data-y="' + data.pixel.y + '">פיקסל #' + data.pixel.id + " של " + esc(data.pixel.name) + " (" + data.pixel.x + "," + data.pixel.y + ")</div>"
-        : '<span class="muted">לא נמצא פיקסל עם המספר הזה</span>';
-    } else if (data.type === "region") {
-      out.innerHTML = '<div class="search-row" data-x="' + data.x + '" data-y="' + data.y + '">קפיצה לאזור ' + data.x + "," + data.y + "</div>";
-    } else if (data.type === "users") {
-      out.innerHTML = data.users.map((u) =>
-        '<div class="search-row" data-uid="' + u.id + '">' +
-        (u.picture ? '<img src="' + esc(u.picture) + '">' : "") +
-        "<b>" + esc(u.name) + "</b><span class='muted'>" + u.pixels + " פיקסלים</span></div>"
-      ).join("") || '<span class="muted">לא נמצאו משתמשים</span>';
+    try {
+      const { status, data } = await api("/api/search?q=" + encodeURIComponent(q));
+      if (epoch !== searchEpoch) return;
+      if (status !== 200 || !data || !data.type) throw new Error("search unavailable");
+      if (data.type === "pixel") {
+        out.innerHTML = data.pixel
+          ? '<button type="button" class="search-row" data-x="' + data.pixel.x + '" data-y="' + data.pixel.y + '">פיקסל #' + data.pixel.id + " של " + esc(data.pixel.name) + " (" + data.pixel.x + "," + data.pixel.y + ")</button>"
+          : '<span class="muted">לא נמצא פיקסל עם המספר הזה</span>';
+      } else if (data.type === "region") {
+        out.innerHTML = '<button type="button" class="search-row" data-x="' + data.x + '" data-y="' + data.y + '">קפיצה לאזור ' + data.x + "," + data.y + "</button>";
+      } else if (data.type === "users" && Array.isArray(data.users)) {
+        out.innerHTML = data.users.map((u) =>
+          '<button type="button" class="search-row" data-uid="' + u.id + '">' +
+          (u.picture ? '<img alt="" src="' + esc(u.picture) + '">' : "") +
+          "<b>" + esc(u.name) + "</b><span class='muted'>" + u.pixels + " פיקסלים</span></button>"
+        ).join("") || '<span class="muted">לא נמצאו משתמשים</span>';
+      } else throw new Error("invalid search response");
+      out.querySelectorAll(".search-row").forEach((r) => {
+        r.onclick = () => {
+          if (r.dataset.uid) showProfile(+r.dataset.uid);
+          else flyTo(+r.dataset.x, +r.dataset.y);
+        };
+      });
+    } catch (error) {
+      if (epoch === searchEpoch) out.innerHTML = '<span class="muted">החיפוש לא זמין כרגע. נסה שוב בעוד רגע.</span>';
     }
-    out.querySelectorAll(".search-row").forEach((r) => {
-      r.onclick = () => {
-        if (r.dataset.uid) showProfile(+r.dataset.uid);
-        else flyTo(+r.dataset.x, +r.dataset.y);
-      };
-    });
   }, 350);
 });
 
