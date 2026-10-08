@@ -151,3 +151,13 @@ body {
   #sidebar { width: 100%; border-left: none; border-top: 1px solid #232a4a; }
   #brand-sub { display: none; }
 }
+
+/* Keep keyboard navigation visible and respect reduced-motion preferences. */
+:where(button,input,select,textarea,a,[tabindex]):focus-visible {
+  outline: 3px solid var(--accent, #08d9d6);
+  outline-offset: 3px;
+}
+.search-results button:focus-visible { background: #262c4a; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
