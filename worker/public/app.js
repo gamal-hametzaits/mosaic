@@ -384,14 +384,17 @@ function buildPalette() {
   const el = $("palette");
   el.innerHTML = "";
   PALETTE.forEach((hex, i) => {
-    const d = document.createElement("div");
+    const d = document.createElement("button");
+    d.type = "button";
+    d.setAttribute("aria-label", (i >= FREE_COLORS ? "צבע פרימיום " : "צבע ") + (i + 1));
+    d.setAttribute("aria-pressed", "false");
     d.className = "swatch" + (i >= FREE_COLORS ? " locked" : "");
     d.style.background = hex;
     d.title = i >= FREE_COLORS ? "צבע פרימיום" : "צבע " + (i + 1);
     d.onclick = () => {
       if (i >= FREE_COLORS && !(S.me && S.me.is_premium)) return;
       S.selectedColor = i;
-      [...el.children].forEach((c, j) => c.classList.toggle("selected", j === i));
+      [...el.children].forEach((c, j) => (c.classList.toggle("selected", j === i), c.setAttribute("aria-pressed", String(j === i))));
       updatePlaceState();
       draw();
     };
@@ -416,7 +419,7 @@ $("place-btn").onclick = async () => {
     loadOverview();
     refreshFeed(); refreshStats();
     S.selected = null; S.selectedColor = null;
-    [...$("palette").children].forEach((c) => c.classList.remove("selected"));
+    [...$("palette").children].forEach((c) => (c.classList.remove("selected"), c.setAttribute("aria-pressed", "false")));
     $("daily-status").textContent = "הפיקסל הונח! 🎉 מספר #" + data.pixel.id;
     draw();
   } else {
