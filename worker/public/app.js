@@ -402,11 +402,16 @@ function buildPalette() {
   });
 }
 
+let placing=false;
 $("place-btn").onclick = async () => {
-  if (!S.selected || S.selectedColor == null) return;
+  if (placing || !S.me || !S.selected || S.selectedColor == null) return;
+  placing=true;
+  const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),20000);
   $("place-error").textContent = "";
   $("place-btn").disabled = true;
+  try{
   const { status, data } = await api("/api/place", {
+    signal:ac.signal,
     method: "POST",
     body: JSON.stringify({ x: S.selected.x, y: S.selected.y, color: S.selectedColor }),
   });
@@ -431,7 +436,12 @@ $("place-btn").onclick = async () => {
     };
     $("place-error").textContent = map[data.error] || ("שגיאה: " + (data.error || status));
   }
-  updatePlaceState();
+  }catch(error){
+    // A response lost in transit does not prove the placement failed.
+    $("place-error").textContent = "לא התקבל אישור מהשרת. ייתכן שהפיקסל הונח; רענן את הדף כדי לבדוק לפני ניסיון נוסף.";
+  }finally{
+    clearTimeout(timer);placing=false;updatePlaceState();
+  }
 };
 
 // ---------- stats / feed ----------
