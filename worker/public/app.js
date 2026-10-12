@@ -283,6 +283,7 @@ function fitWorld() {
   clampView();
 }
 function flyTo(x, y, scale = 14) {
+  pixelInfoEpoch++;
   S.view.x = x + 0.5; S.view.y = y + 0.5; S.view.scale = scale;
   clampView(); draw();
 }
@@ -290,7 +291,21 @@ function flyTo(x, y, scale = 14) {
 // tap = select (only when zoomed in enough and barely moved)
 let tapStart = null;
 board.addEventListener("pointerdown", (e) => { tapStart = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+let pixelInfoEpoch=0;
+async function inspectPixel(px,py,epoch){
+  const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),12000);
+  try{
+    const {status,data}=await api('/api/at/'+px+'/'+py,{signal:ac.signal});
+    if(epoch!==pixelInfoEpoch)return;
+    if(status!==200)throw new Error('HTTP '+status);
+    if(S.selected&&S.selected.x===px&&S.selected.y===py&&data.pixel)showPixelInfo(data.pixel);
+  }catch(e){
+    if(epoch!==pixelInfoEpoch)return;
+    $('place-error').textContent='פרטי הפיקסל לא נטענו. אין כאן אישור שהמשבצת פנויה; בחר אותה שוב כדי לבדוק.';
+  }finally{clearTimeout(timer);}
+}
 board.addEventListener("pointerup", async (e) => {
+  const infoEpoch=++pixelInfoEpoch;
   if (!tapStart) return;
   const moved = Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y);
   const dt = Date.now() - tapStart.t;
@@ -304,8 +319,7 @@ board.addEventListener("pointerup", async (e) => {
   S.selected = { x: px, y: py };
   draw();
   updatePlaceState();
-  const { data } = await api("/api/at/" + px + "/" + py);
-  if (data.pixel) showPixelInfo(data.pixel);
+  await inspectPixel(px,py,infoEpoch);
 });
 
 // ---------- auth ----------
@@ -539,8 +553,8 @@ function openModal(html) {
   $("modal-content").innerHTML = html;
   $("modal-backdrop").classList.remove("hidden");
 }
-$("modal-close").onclick = () => $("modal-backdrop").classList.add("hidden");
-$("modal-backdrop").onclick = (e) => { if (e.target === $("modal-backdrop")) $("modal-backdrop").classList.add("hidden"); };
+$("modal-close").onclick = () => { pixelInfoEpoch++; $("modal-backdrop").classList.add("hidden"); };
+$("modal-backdrop").onclick = (e) => { if (e.target === $("modal-backdrop")) { pixelInfoEpoch++; $("modal-backdrop").classList.add("hidden"); } };
 
 function showPixelInfo(p) {
   openModal(
@@ -557,6 +571,7 @@ function showPixelInfo(p) {
 }
 
 async function showProfile(uid) {
+  pixelInfoEpoch++;
   const { data } = await api("/api/user/" + uid);
   if (!data.user) return;
   const u = data.user, px = data.pixels || [];
