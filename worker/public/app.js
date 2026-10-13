@@ -612,25 +612,39 @@ async function loadHistogram() {
   const { data } = await api("/api/histogram");
   S.histogram = data.days || [];
 }
-$("timeline").addEventListener("change", async (e) => {
-  const v = +e.target.value;
+let historyEpoch = 0;
+async function setHistory(v) {
+  const epoch = ++historyEpoch;
+  pixelInfoEpoch++;
   if (v >= 100 || !S.histogram.length) {
     S.historyPixels = null; S.histTs = null;
     $("timeline-label").textContent = "הווה";
     draw(); return;
   }
   const first = new Date(S.histogram[0].day + "T00:00:00Z").getTime();
-  const now = Date.now();
-  const t = new Date(first + (now - first) * (v / 100));
+  const t = new Date(first + (Date.now() - first) * (v / 100));
   const iso = t.toISOString();
   S.histTs = iso;
-  $("timeline-label").textContent = "עד " + t.toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" });
-  const { data } = await api("/api/history?to=" + encodeURIComponent(iso));
-  if (S.histTs !== iso) return;
-  S.historyPixels = data.pixels || [];
-  $("timeline-label").textContent += " · " + (data.total || 0).toLocaleString("he") + " פיקסלים";
+  S.historyPixels = [];
+  const label = "עד " + t.toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" });
+  $("timeline-label").textContent = label + " · טוען…";
   draw();
-});
+  const ac = new AbortController(), timer = setTimeout(() => ac.abort(), 15000);
+  try {
+    const { status, data } = await api("/api/history?to=" + encodeURIComponent(iso), { signal: ac.signal });
+    if (epoch !== historyEpoch) return;
+    if (status !== 200 || !Array.isArray(data.pixels)) throw new Error("history unavailable");
+    S.historyPixels = data.pixels;
+    $("timeline-label").textContent = label + " · " + (data.total || 0).toLocaleString("he") + " פיקסלים";
+    draw();
+  } catch (error) {
+    if (epoch !== historyEpoch) return;
+    S.historyPixels = [];
+    $("timeline-label").textContent = label + " · ההיסטוריה לא נטענה. אין כאן אישור שהקנבס היה ריק; נסה שוב או חזור להווה.";
+    draw();
+  } finally { clearTimeout(timer); }
+}
+$("timeline").addEventListener("change", (e) => setHistory(+e.target.value));
 
 // ---------- boot ----------
 (async function boot() {
